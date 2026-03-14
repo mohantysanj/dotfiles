@@ -294,6 +294,7 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   (deft-recursive t))
 
 (use-package denote
+  :bind ("C-c n n" . denote)
   :custom
   (denote-directory my/org-directory))
 
