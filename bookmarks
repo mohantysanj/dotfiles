@@ -1,0 +1,11 @@
+;;;; Emacs Bookmark Format Version 1;;;; -*- coding: utf-8-emacs; mode: lisp-data -*-
+;;; This format is meant to be slightly human-readable;
+;;; nevertheless, you probably don't want to edit it.
+;;; -*- End Of Bookmark File Format Version Stamp -*-
+(("org-capture-last-stored"
+ (filename . "~/Sync/Documents/org/booklist.org")
+ (front-context-string . "** TOREAD The Me")
+ (rear-context-string . ":01]\n  Notes:  \n")
+ (position . 58726)
+ (last-modified 27055 15002 783627 377000))
+)
