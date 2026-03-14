@@ -201,7 +201,8 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   :bind (("C-." . embark-act)))
 
 (use-package embark-consult
-  :after (embark consult))
+  :after (embark consult)
+  :demand t)
 
 (use-package which-key
   :config (which-key-mode))
