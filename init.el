@@ -4,8 +4,13 @@
 ;; A focused writing and research environment with Vertico completion,
 ;; Org-mode integration, NIH grant support, and Scrivener-style two-pane editing.
 ;;
-;; Portable: Works on any machine with Emacs 27.1+
+;; Portable: Works on any machine with Emacs 28+
 ;; Dependencies installed automatically via use-package
+;;
+;; First-run notes:
+;; - Packages are installed automatically on first launch (requires network)
+;; - Run M-x nerd-icons-install-fonts once after initial setup for proper icons
+;; - Customize my/org-directory and my/bibliography-file for your paths
 
 ;;; Code:
 
@@ -158,8 +163,13 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   (add-hook 'after-init-hook #'my/set-fonts)
   (add-hook 'after-init-hook #'my/center-frame t))
 
-;; Theme (modus-themes are built-in from Emacs 28+)
-(load-theme 'modus-vivendi :no-confirm)
+;; Theme: modus-vivendi is built-in from Emacs 28+; install from MELPA on older versions
+(if (>= emacs-major-version 28)
+    (load-theme 'modus-vivendi :no-confirm)
+  (unless (package-installed-p 'modus-themes)
+    (my/ensure-package-refresh)
+    (package-install 'modus-themes))
+  (load-theme 'modus-vivendi :no-confirm))
 
 ;;;; ============================================================
 ;;;;                    COMPLETION FRAMEWORK
@@ -200,7 +210,11 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   :after marginalia
   :config
   (nerd-icons-completion-mode)
-  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup)
+  ;; Auto-install Nerd Fonts on first use (needed for icons to render correctly)
+  (when (and (display-graphic-p)
+             (not (find-font (font-spec :name "Symbols Nerd Font Mono"))))
+    (nerd-icons-install-fonts :no-query)))
 
 ;;;; ============================================================
 ;;;;                    WRITING MODES
@@ -233,6 +247,7 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
 ;;;; ============================================================
 
 (use-package org
+  :ensure nil  ;; Built-in; don't pull from ELPA (avoids version conflicts)
   :custom
   (org-todo-keywords '((sequence "TOREAD" "READING(r!)" "PAUSED(p@)" "ABORTED(a@)" "|" "DONE")))
   (org-directory my/org-directory)
@@ -270,10 +285,12 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   (deft-use-filename-as-title t)
   (deft-recursive t))
 
-;; Only load consult-denote if denote is available
+(use-package denote
+  :custom
+  (denote-directory my/org-directory))
+
 (use-package consult-denote
-  :after consult
-  :if (locate-library "denote")
+  :after (consult denote)
   :bind
   (("C-c n f" . consult-denote-find)
    ("C-c n g" . consult-denote-grep))
