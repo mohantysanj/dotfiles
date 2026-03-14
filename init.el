@@ -101,9 +101,17 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   :type 'file
   :group 'my/paths)
 
+(defcustom my/notes-directory "~/Sync/Documents/notes/"
+  "Directory for Denote notes."
+  :type 'directory
+  :group 'my/paths)
+
 ;; Create org directory if it doesn't exist
 (unless (file-exists-p my/org-directory)
   (make-directory my/org-directory t))
+
+(unless (file-exists-p my/notes-directory)
+  (make-directory my/notes-directory t))
 
 ;;;; ============================================================
 ;;;;                    UI: CLEAN VISUAL ENVIRONMENT
