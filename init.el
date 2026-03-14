@@ -198,11 +198,14 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   (setq consult-preview-key 'any))
 
 (use-package embark
-  :bind (("C-." . embark-act)))
+  :bind (("C-." . embark-act))
+  :config
+  ;; Load embark-consult here so it's in `features' before embark's own
+  ;; with-eval-after-load 'consult check runs (which fires after provide 'embark).
+  (require 'embark-consult))
 
 (use-package embark-consult
-  :after (embark consult)
-  :demand t)
+  :defer t)  ;; installation only; loading handled by embark :config above
 
 (use-package which-key
   :config (which-key-mode))
