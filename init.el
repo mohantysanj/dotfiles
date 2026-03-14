@@ -195,13 +195,7 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
          ("C-x 5 b" . consult-buffer-other-frame)
          ("C-c r" . consult-ripgrep))
   :config
-  (setq consult-preview-key 'any)
-  ;; If embark is already loaded when consult loads, pull in the integration
-  ;; package now — before embark's own after-load check fires.  This hook is
-  ;; registered during init.el (before either package lazily loads), so it
-  ;; always runs ahead of embark's check in the after-load-alist.
-  (when (featurep 'embark)
-    (require 'embark-consult nil t)))
+  (setq consult-preview-key 'any))
 
 (use-package embark
   :bind (("C-." . embark-act)))
