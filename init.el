@@ -250,6 +250,18 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
    (writeroom-mode . centered-cursor-mode)
    (writeroom-mode . wc-mode)))
 
+(use-package logos
+  :after org
+  :custom
+  (logos-outlines-are-pages t)
+  (logos-hide-mode-line t)
+  (logos-hide-header-line t)
+  (logos-variable-pitch t)
+  :bind (("<f9>" . logos-focus-mode)
+	 :map logos-focus-mode-map
+	 ("<next>" . logos-forward-page-dwim)
+	 ("<prior>" . logos-backward-page-dwim)))
+
 ;;;; ============================================================
 ;;;;                    ORG MODE
 ;;;; ============================================================
@@ -314,6 +326,13 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   :after (citar embark)
   :no-require
   :config (citar-embark-mode))
+
+(use-package citar-denote
+  :after (citar denote)
+  :custom
+  (citar-denote-template
+   "* What it shows\n\n* For my work\n\n* Next action\n\n")
+  :config (citar-denote-mode))
 
 ;;;; ============================================================
 ;;;;                    NIH GRANT SUPPORT
