@@ -35,15 +35,11 @@
 ;;;; ============================================================
 
 (require 'package)
-(setq package-archives
-      '(("gnu"    . "https://elpa.gnu.org/packages/")
-        ("melpa"  . "https://melpa.org/packages/")
-        ("stable" . "https://stable.melpa.org/packages/")))
-(package-initialize)
-(unless package-archive-contents
-  (package-refresh-contents))
+;; package-archives is set in early-init.el so Emacs 27+ auto-initialization
+;; uses MELPA.  package-initialize is omitted: it runs automatically before
+;; init.el in Emacs 27+, and an explicit call causes a startup warning in 29+.
 
-;; Auto-refresh package archives if any declared package is missing
+;; Defined before use so the refresh guard below can call it.
 (defvar my/package-refreshed nil
   "Flag to avoid multiple refreshes in one session.")
 
@@ -59,17 +55,6 @@
 
 (require 'use-package)
 (setq use-package-always-ensure t)
-
-;; Make use-package refresh archives before installing missing packages
-(defun my/use-package-ensure-function (name args state &optional no-refresh)
-  "Ensure package NAME is installed, refreshing archives if needed.
-ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
-  (when (and (not (package-installed-p name))
-             (not (assoc name package-archive-contents)))
-    (my/ensure-package-refresh))
-  (use-package-ensure-elpa name args state no-refresh))
-
-(setq use-package-ensure-function #'my/use-package-ensure-function)
 
 ;;;; ============================================================
 ;;;;                    NATIVE COMPILATION
@@ -124,11 +109,9 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
 (setq-default line-spacing 0.2)
 (global-visual-line-mode t)
 
-;; Frame configuration
-(setq initial-frame-alist '((top . 1)
-                            (width . 85)
-                            (fullscreen . fullheight)))
-(setq default-frame-alist initial-frame-alist)
+;; Frame configuration — fullscreen applied after init to avoid WM race on width
+(setq initial-frame-alist '((top . 1) (width . 85)))
+(setq default-frame-alist '((top . 1) (width . 85)))
 
 ;; Center frame horizontally on the display
 (defun my/center-frame (&optional frame)
@@ -161,15 +144,20 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
                     (set-face-attribute 'fixed-pitch nil :family font :height 1.0)
                     (cl-return))))))
 
-;; Set fonts and center frame after creation (daemon mode compatible)
+;; Set fonts, center, and apply full height after init (daemon mode compatible).
+;; fullscreen is applied here rather than in frame-alist to avoid a WM race
+;; condition that could cause the initial frame to appear at the wrong width.
 (if (daemonp)
     (add-hook 'after-make-frame-functions
               (lambda (frame)
                 (with-selected-frame frame
                   (my/set-fonts)
-                  (my/center-frame frame))))
+                  (my/center-frame frame)
+                  (set-frame-parameter frame 'fullscreen 'fullheight))))
   (add-hook 'after-init-hook #'my/set-fonts)
-  (add-hook 'after-init-hook #'my/center-frame t))
+  (add-hook 'after-init-hook #'my/center-frame t)
+  (add-hook 'after-init-hook
+            (lambda () (set-frame-parameter nil 'fullscreen 'fullheight))))
 
 ;; Theme: modus-vivendi is built-in from Emacs 28+; install from MELPA on older versions
 (if (>= emacs-major-version 28)
@@ -203,7 +191,12 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
          ("C-x 5 b" . consult-buffer-other-frame)
          ("C-c r" . consult-ripgrep))
   :config
-  (setq consult-preview-key 'any))
+  (setq consult-preview-key 'any)
+  ;; Narrow to subtree only after consult-imenu jumps, not all consult commands
+  (advice-add 'consult-imenu :after
+              (lambda (&rest _)
+                (when (derived-mode-p 'org-mode)
+                  (org-narrow-to-subtree)))))
 
 (use-package embark
   :bind (("C-." . embark-act)))
@@ -212,17 +205,17 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   :after (embark consult))
 
 (use-package which-key
-  :config (which-key-mode))
+  :init (which-key-mode))
 
 (use-package nerd-icons-completion
   :after marginalia
   :config
   (nerd-icons-completion-mode)
   (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup)
-  ;; Auto-install Nerd Fonts on first use (needed for icons to render correctly)
+  ;; Install Nerd Fonts on first use, deferred so it doesn't block startup
   (when (and (display-graphic-p)
              (not (find-font (font-spec :name "Symbols Nerd Font Mono"))))
-    (nerd-icons-install-fonts :no-query)))
+    (run-with-idle-timer 2 nil (lambda () (nerd-icons-install-fonts t)))))
 
 ;;;; ============================================================
 ;;;;                    WRITING MODES
@@ -273,11 +266,14 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
   (org-directory my/org-directory)
   (org-agenda-files (list my/org-directory))
   (org-log-done t)
+  (org-cite-global-bibliography (list my/bibliography-file))
+  (org-cite-insert-processor 'citar)
+  (org-cite-follow-processor 'citar)
+  (org-cite-activate-processor 'citar)
   :bind (("C-c c" . org-capture)
          ("C-c a" . org-agenda)
          ("C-c l" . org-store-link))
   :config
-  (setq org-todo-keywords-for-agenda '("TOREAD" "READING" "PAUSED" "ABORTED" "DONE"))
   ;; Capture templates using the customizable path
   (setq org-capture-templates
         `(("j" "Journal" entry (file+datetree ,(expand-file-name "journal.org" my/org-directory))
@@ -288,11 +284,7 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
            "* TODO %?\n %U\n")
           ("b" "Book" entry (file+headline ,(expand-file-name "booklist.org" my/org-directory) "Books")
            "** TOREAD %^{Title} / %^{Author} (%^{Year})\n  Notes: %?")))
-  ;; Narrow to subtree after imenu jump (useful for long files)
-  (add-hook 'consult-after-jump-hook
-            (lambda ()
-              (when (derived-mode-p 'org-mode)
-                (org-narrow-to-subtree)))))
+)
 
 ;;;; ============================================================
 ;;;;                    RESEARCH & KNOWLEDGE MANAGEMENT
@@ -308,7 +300,11 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
 (use-package denote
   :bind ("C-c n n" . denote)
   :custom
-  (denote-directory my/org-directory))
+  (denote-directory my/notes-directory)
+  (denote-known-keywords '("research" "books"))
+  (denote-templates
+   '((research . "* What it shows\n\n* For my work\n\n* Next action\n\n")
+     (book     . "* Summary\n\n* Key ideas\n\n* How it changes my thinking\n\n"))))
 
 (use-package consult-denote
   :after (consult denote)
@@ -329,10 +325,32 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
 
 (use-package citar-denote
   :after (citar denote)
-  :custom
-  (citar-denote-template
-   "* What it shows\n\n* For my work\n\n* Next action\n\n")
   :config (citar-denote-mode))
+
+(defun my/booklist-done-hook ()
+  "When a book is marked DONE in booklist.org, create a Denote note linked back."
+  (when (and (buffer-file-name)
+             (string-match-p "booklist\\.org$" (buffer-file-name))
+             (string= org-state "DONE"))
+    (let* ((heading (org-get-heading t t t t))
+           (title (replace-regexp-in-string " / .*$" "" heading))
+           (note-title (read-string "Book note title: " title))
+           ;; Capture file + heading text before buffer switch
+           (src-file (buffer-file-name))
+           (src-heading heading))
+      (run-with-idle-timer
+       0 nil
+       (lambda ()
+         (let ((path (denote note-title '("books") nil nil nil 'book)))
+           (with-current-buffer (find-file-noselect path)
+             (goto-char (point-min))
+             (when (re-search-forward "^#\\+identifier:" nil t)
+               (end-of-line)
+               (insert "\n#+booklist-entry: [[file:" src-file "][" src-heading "]]"))
+             (save-buffer))))))))
+
+(add-hook 'org-after-todo-state-change-hook
+          #'my/booklist-done-hook)
 
 ;;;; ============================================================
 ;;;;                    NIH GRANT SUPPORT
@@ -351,7 +369,7 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
                pdf-info-epdfinfo-program
                (file-executable-p pdf-info-epdfinfo-program))
     (condition-case nil
-        (pdf-tools-install :no-query)
+        (pdf-tools-install t)
       (error (message "pdf-tools: epdfinfo not available, using doc-view")))))
 
 ;; Load NIH grant setup after org
@@ -527,33 +545,41 @@ ARGS, STATE, and NO-REFRESH are passed through to `use-package-ensure-elpa'."
 
 (defun my/scrivener-disable ()
   "Disable Scrivener view and restore previous window configuration."
-  (let ((current-name (buffer-name)))
-    (unless (string-match-p "-outline$\\|-prose$" current-name)
-      (user-error "Not in Scrivener view"))
-    (let* ((base-name (replace-regexp-in-string "-outline$\\|-prose$" "" current-name))
-           (base-buf (get-buffer base-name))
-           (out-buf (get-buffer (concat base-name "-outline")))
-           (pro-buf (get-buffer (concat base-name "-prose")))
-           (saved-config my/scrivener-saved-window-config))
-      (when my/scrivener-sync-timer
-        (cancel-timer my/scrivener-sync-timer)
-        (setq my/scrivener-sync-timer nil))
-      (setq my/scrivener-outline-window nil
-            my/scrivener-prose-window nil
-            my/scrivener-saved-window-config nil)
-      (when pro-buf
-        (with-current-buffer pro-buf
-          (when (bound-and-true-p writeroom-mode)
-            (writeroom-mode -1))))
-      (if saved-config
-          (set-window-configuration saved-config)
-        (delete-other-windows)
-        (when base-buf (switch-to-buffer base-buf)))
-      (when out-buf (kill-buffer out-buf))
-      (when pro-buf (kill-buffer pro-buf))
-      (when base-buf
-        (with-current-buffer base-buf (widen)))
-      (message "Exited Scrivener view."))))
+  (unless (or (and my/scrivener-outline-window
+                   (window-live-p my/scrivener-outline-window))
+              (and my/scrivener-prose-window
+                   (window-live-p my/scrivener-prose-window)))
+    (user-error "Not in Scrivener view"))
+  (let* ((out-buf (and my/scrivener-outline-window
+                       (window-live-p my/scrivener-outline-window)
+                       (window-buffer my/scrivener-outline-window)))
+         (pro-buf (and my/scrivener-prose-window
+                       (window-live-p my/scrivener-prose-window)
+                       (window-buffer my/scrivener-prose-window)))
+         (base-name (and out-buf
+                         (replace-regexp-in-string "-outline$" ""
+                                                   (buffer-name out-buf))))
+         (base-buf (and base-name (get-buffer base-name)))
+         (saved-config my/scrivener-saved-window-config))
+    (when my/scrivener-sync-timer
+      (cancel-timer my/scrivener-sync-timer)
+      (setq my/scrivener-sync-timer nil))
+    (setq my/scrivener-outline-window nil
+          my/scrivener-prose-window nil
+          my/scrivener-saved-window-config nil)
+    (when pro-buf
+      (with-current-buffer pro-buf
+        (when (bound-and-true-p writeroom-mode)
+          (writeroom-mode -1))))
+    (if saved-config
+        (set-window-configuration saved-config)
+      (delete-other-windows)
+      (when base-buf (switch-to-buffer base-buf)))
+    (when out-buf (kill-buffer out-buf))
+    (when pro-buf (kill-buffer pro-buf))
+    (when base-buf
+      (with-current-buffer base-buf (widen)))
+    (message "Exited Scrivener view.")))
 
 (define-minor-mode my/scrivener-mode
   "Minor mode for Scrivener-style two-pane Org editing."
