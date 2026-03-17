@@ -304,7 +304,7 @@
   (denote-known-keywords '("research" "books"))
   (denote-templates
    '((research . "* What it shows\n\n* For my work\n\n* Next action\n\n")
-     (book     . "* Summary\n\n* Key ideas\n\n* How it changes my thinking\n\n"))))
+     (book     . "* Summary\n\n* Key ideas worth keeping\n\n* How it changes my thinking\n\n*What does this connect to if anything\n\n"))))
 
 (use-package consult-denote
   :after (consult denote)
