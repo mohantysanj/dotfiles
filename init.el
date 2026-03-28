@@ -262,10 +262,9 @@
 (use-package org
   :ensure nil  ;; Built-in; don't pull from ELPA (avoids version conflicts)
   :custom
-  (org-todo-keywords '((sequence "TOREAD" "READING(r!)" "PAUSED(p@)" "ABORTED(a@)" "|" "DONE")))
+  (org-todo-keywords '((sequence "TOREAD" "READING(r)" "PAUSED(p@)" "ABORTED(a@)" "|" "DONE")))
   (org-directory my/org-directory)
   (org-agenda-files (list my/org-directory))
-  (org-log-done t)
   (org-cite-global-bibliography (list my/bibliography-file))
   (org-cite-insert-processor 'citar)
   (org-cite-follow-processor 'citar)
@@ -328,10 +327,11 @@
   :config (citar-denote-mode))
 
 (defun my/booklist-done-hook ()
-  "When a book is marked DONE in booklist.org, create a Denote note linked back."
+  "When a book is marked DONE in booklist.org, optionally create a Denote note linked back."
   (when (and (buffer-file-name)
              (string-match-p "booklist\\.org$" (buffer-file-name))
-             (string= org-state "DONE"))
+             (string= org-state "DONE")
+             (y-or-n-p "Create book note? "))
     (let* ((heading (org-get-heading t t t t))
            (title (replace-regexp-in-string " / .*$" "" heading))
            (note-title (read-string "Book note title: " title))
