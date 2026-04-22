@@ -324,6 +324,9 @@
 
 (use-package citar-denote
   :after (citar denote)
+  :custom
+  (citar-notes-paths (list my/notes-directory))
+  (citar-file-note-extensions '("org"))
   :config (citar-denote-mode))
 
 (defun my/booklist-done-hook ()
