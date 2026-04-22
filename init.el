@@ -297,6 +297,7 @@
   (deft-recursive t))
 
 (use-package denote
+  :demand t
   :bind ("C-c n n" . denote)
   :custom
   (denote-directory my/notes-directory)
@@ -314,6 +315,7 @@
   (consult-denote-mode 1))
 
 (use-package citar
+  :demand t
   :custom
   (citar-bibliography (list my/bibliography-file)))
 
@@ -324,9 +326,7 @@
 
 (use-package citar-denote
   :after (citar denote)
-  :custom
-  (citar-notes-paths (list my/notes-directory))
-  (citar-file-note-extensions '("org"))
+  :demand t
   :config (citar-denote-mode))
 
 (defun my/booklist-done-hook ()
