@@ -160,12 +160,10 @@
             (lambda () (set-frame-parameter nil 'fullscreen 'fullheight))))
 
 ;; Theme: modus-vivendi is built-in from Emacs 28+; install from MELPA on older versions
-(if (>= emacs-major-version 29)
-    (load-theme 'modus-vivendi-tinted :no-confirm)
-  (unless (package-installed-p 'modus-themes)
-    (my/ensure-package-refresh)
-    (package-install 'modus-themes))
-  (load-theme 'modus-vivendi-tinted :no-confirm))
+(use-package doom-themes
+  :config
+  (load-theme 'doom-gruvbox :no-confirm)
+  (doom-themes-org-config))
 
 ;;;; ============================================================
 ;;;;                    COMPLETION FRAMEWORK
