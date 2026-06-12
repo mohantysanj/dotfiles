@@ -160,12 +160,12 @@
             (lambda () (set-frame-parameter nil 'fullscreen 'fullheight))))
 
 ;; Theme: modus-vivendi is built-in from Emacs 28+; install from MELPA on older versions
-(if (>= emacs-major-version 28)
-    (load-theme 'modus-vivendi :no-confirm)
+(if (>= emacs-major-version 29)
+    (load-theme 'modus-vivendi-tinted :no-confirm)
   (unless (package-installed-p 'modus-themes)
     (my/ensure-package-refresh)
     (package-install 'modus-themes))
-  (load-theme 'modus-vivendi :no-confirm))
+  (load-theme 'modus-vivendi-tinted :no-confirm))
 
 ;;;; ============================================================
 ;;;;                    COMPLETION FRAMEWORK
@@ -284,7 +284,34 @@
           ("b" "Book" entry (file+headline ,(expand-file-name "booklist.org" my/org-directory) "Books")
            "** TOREAD %^{Title} / %^{Author} (%^{Year})\n  Notes: %?")))
 )
+;;;; ============================================================
+;;;;                    LOCAL LLM (GPTEL + OLLAMA)
+;;;; ============================================================
 
+(use-package gptel
+  :ensure t
+  :bind (("C-c g" . gptel)          ; open chat buffer
+         ("C-c G" . gptel-send))    ; send region or buffer
+  :config
+  ;; Register Ollama as a backend
+  (gptel-make-ollama "Ollama"
+    :host "localhost:11434"
+    :stream t                        ; stream tokens as they arrive
+    :models '(qwen2.5:14b
+              deepseek-r1:14b
+              gemma3:12b
+              qwen2.5:32b))
+
+  ;; Set defaults
+  (setq gptel-backend (gptel-get-backend "Ollama")
+        gptel-model   'qwen2.5:14b
+        gptel-default-mode 'org-mode  ; chat buffers open as org files
+	gptel-default-buffer-name "*Ollama*"
+        ;; Named system prompts — your "projects" equivalent
+        gptel-directives
+        '((default . "You are a helpful assistant. Be concise and precise.")
+          (grant   . "You are helping write NIH grant applications. Use standard scientific conventions. Be precise about claims and flag where evidence is needed.")
+          (writing . "You are a writing assistant for academic biomedical writing. Improve clarity and flow without changing meaning or adding claims."))))
 ;;;; ============================================================
 ;;;;                    RESEARCH & KNOWLEDGE MANAGEMENT
 ;;;; ============================================================
